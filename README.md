@@ -57,6 +57,10 @@ To run it with level 95 for example, just do this:
 "
 ```
 
+Alternatively, you can also just pass a screenshot from VICE (Menu "Snapshot", "Save/Record metadata")
+in PNG format using the `--screenshot` flag. `pupusolver` will then reconstruct the level data from 
+that screenshot.
+
 # Credits
 PUPU tiles were taken from PUPU with [the permission](https://www.forum64.de/index.php?thread/151032-pupu-das-neue-highlight-f%C3%BCr-den-c64-ist-da/&postID=2212822#post2212822) of PUPU's author [Omega](https://www.forum64.de/wcf/index.php?user/27229-omega/)
 
