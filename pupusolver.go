@@ -1,8 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"image"
+	"image/color"
+	_ "image/gif"
+	_ "image/png"
 	"os"
 	"strings"
 
@@ -22,7 +27,8 @@ const (
 	playfieldH = 12
 )
 
-var flagLevelData = flag.String("level", `............
+var (
+	flagLevelData = flag.String("level", `............
 ............
 .....##.....
 ....# C#....
@@ -35,6 +41,9 @@ var flagLevelData = flag.String("level", `............
 ............
 ............
 `, "level data")
+
+	flagScreenshot = flag.String("screenshot", "", "Load level data from screenshot")
+)
 
 // ================================================
 // == TILES
@@ -322,6 +331,108 @@ func playfieldFromString(text string) *playfield {
 	return &res
 }
 
+func colToInt(c color.Color) int {
+	r, g, b, _ := c.RGBA()
+	if r == 0 && g == 0 && b == 0 {
+		return 0
+	}
+	return 1
+}
+
+func playfieldFromScreenshot(screenshot string) *playfield {
+	// First, load the tiles for comparison
+	r := bytes.NewReader(tilesData)
+	img, _, err := image.Decode(r)
+	if err != nil {
+		panic(err)
+	}
+	nofTiles := 11
+	tileLineW := nofTiles * tileW
+	var tilesPix = make([]int, tileLineW*tileH)
+	for y := 0; y < tileH; y++ {
+		for x := 0; x < 11*tileW; x++ {
+			tilesPix[y*tileLineW+x] = colToInt(img.At(x, y))
+		}
+	}
+
+	// Now load screenshot
+	f, err := os.Open(screenshot)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Can't open screenshot: %v", err)
+		os.Exit(1)
+	}
+	defer f.Close()
+	img, _, err = image.Decode(f)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Can't load screenshot: %v", err)
+		os.Exit(1)
+	}
+	levelW := img.Bounds().Dx()
+	levelH := img.Bounds().Dy()
+	var levelPix = make([]int, levelW*levelH)
+	for y := 0; y < levelH; y++ {
+		for x := 0; x < levelW; x++ {
+			levelPix[y*levelW+x] = colToInt(img.At(x, y))
+		}
+	}
+
+	// Find top border
+	top := 0
+	for {
+		sum := 0
+		for x := 0; x < levelW; x++ {
+			sum += levelPix[top*levelW+x]
+		}
+		if sum != 0 {
+			break
+		}
+		top++
+	}
+
+	// Find left border
+	left := 0
+	for {
+		sum := 0
+		for y := 0; y < levelH; y++ {
+			sum += levelPix[y*levelW+left]
+		}
+		if sum != 0 {
+			break
+		}
+		left++
+	}
+
+	fmt.Printf("TOP/LEFT: %d, %d\n", top, left)
+
+	// Finally, we can read the tiles!
+	pf := playfield{}
+	for pfY := 0; pfY < playfieldH; pfY++ {
+		for pfX := 0; pfX < playfieldW; pfX++ {
+			tileFound := -1
+			for t := 0; tileFound < 0 && t < nofTiles; t++ {
+				tileMatch := true
+				for y2 := 2; tileMatch && y2 < tileH-2; y2++ { // 2 pix border, we might have the cursor in
+					for x2 := 2; tileMatch && x2 < tileW-2; x2++ {
+						if tilesPix[y2*tileLineW+t*tileW+x2] != levelPix[(top+pfY*tileH+y2)*levelW+left+pfX*tileW+x2] {
+							tileMatch = false
+						}
+					}
+				}
+				if tileMatch {
+					tileFound = t
+				}
+			}
+			if tileFound < 0 {
+				tileFound = int(tileBg)
+			}
+			pf.tiles[pfY][pfX] = tile(tileFound)
+		}
+	}
+
+	return &pf
+
+}
+
 // ================================================
 // == DEQUE
 // ==
@@ -439,7 +550,12 @@ func main() {
 
 	initTileMap()
 
-	startPf := playfieldFromString(*flagLevelData)
+	var startPf *playfield
+	if len(*flagScreenshot) > 0 {
+		startPf = playfieldFromScreenshot(*flagScreenshot)
+	} else {
+		startPf = playfieldFromString(*flagLevelData)
+	}
 
 	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
 		panic(err)
@@ -562,5 +678,4 @@ func main() {
 		}
 		renderer.Present()
 	}
-
 }
