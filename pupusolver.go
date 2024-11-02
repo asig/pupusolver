@@ -401,8 +401,6 @@ func playfieldFromScreenshot(screenshot string) *playfield {
 		left++
 	}
 
-	fmt.Printf("TOP/LEFT: %d, %d\n", top, left)
-
 	// Finally, we can read the tiles!
 	pf := playfield{}
 	for pfY := 0; pfY < playfieldH; pfY++ {
