@@ -475,7 +475,6 @@ func main() {
 
 		pf := playfields.pop()
 
-		fmt.Printf("Working on Playfield %d\n", pfCnt)
 		pfCnt++
 
 		moves := pf.possibleMoves()
@@ -501,6 +500,7 @@ func main() {
 			playfields.push(pf2)
 		}
 	}
+	fmt.Printf("%d playfields analyzed.\n", pfCnt)
 
 	if solution == nil {
 		fmt.Printf("No solution found. WTF???")
