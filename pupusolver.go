@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"flag"
 	"fmt"
 	"image"
@@ -10,8 +11,6 @@ import (
 	_ "image/png"
 	"os"
 	"strings"
-
-	_ "embed"
 
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
