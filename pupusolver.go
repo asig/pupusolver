@@ -49,20 +49,7 @@ const (
 )
 
 var (
-	flagLevelData = flag.String("level", `............
-............
-.....##.....
-....# C#....
-...#  PC#...
-..#   GPR#..
-..#   RG+#..
-...#  +C#...
-....# R#....
-.....##.....
-............
-............
-`, "level data")
-
+	flagLevelData  = flag.String("level", "", "level data")
 	flagScreenshot = flag.String("screenshot", "", "Load level data from screenshot")
 )
 
@@ -77,14 +64,15 @@ const (
 	tile0     tile = iota // H(eart)
 	tile1                 // D(iamond)
 	tile2                 // T(riangle)
-	tile3                 // C(ircle)
-	tile4                 // +
-	tile5                 // (hour)G(lass)
-	tile6                 // P(ate)
-	tile7                 // R(ectangle)
-	tileWall              // '#'
-	tileBg                // '.'
-	tileFloor             // ' '
+	tile3                 // R(ing)
+	tile4                 // (Cross )1
+	tile5                 // S(andglass)
+	tile6                 // (Cross )2
+	tile7                 // F(rame)
+	tile8                 // G(lassblock)
+	tileWall              // '#' (Wall)
+	tileBg                // 'P'(attern)
+	tileEmpty             // '.'
 )
 
 func (t tile) isMobile() bool {
@@ -109,14 +97,15 @@ func initTileMap() {
 	addTileMapping('H', tile0)
 	addTileMapping('D', tile1)
 	addTileMapping('T', tile2)
-	addTileMapping('C', tile3)
-	addTileMapping('+', tile4)
-	addTileMapping('G', tile5)
-	addTileMapping('P', tile6)
-	addTileMapping('R', tile7)
+	addTileMapping('R', tile3)
+	addTileMapping('1', tile4)
+	addTileMapping('S', tile5)
+	addTileMapping('2', tile6)
+	addTileMapping('F', tile7)
+	addTileMapping('G', tile8)
 	addTileMapping('#', tileWall)
-	addTileMapping('.', tileBg)
-	addTileMapping(' ', tileFloor)
+	addTileMapping('P', tileBg)
+	addTileMapping('.', tileEmpty)
 }
 
 type move struct {
@@ -144,7 +133,7 @@ func (pf *playfield) apply(m move) *playfield {
 	y := m.fromY
 
 	t := pf2.get(m.fromX, y)
-	pf2.set(m.fromX, y, tileFloor)
+	pf2.set(m.fromX, y, tileEmpty)
 	pf2.set(m.toX, y, t)
 
 	for {
@@ -203,7 +192,7 @@ func (pf *playfield) removeTiles() bool {
 				// More than 2 tiles, remove them
 				changed = true
 				for p, _ := range set {
-					pf.set(p.x, p.y, tileFloor)
+					pf.set(p.x, p.y, tileEmpty)
 				}
 			}
 		}
@@ -216,13 +205,13 @@ func (pf *playfield) dropTiles() bool {
 	for y := playfieldH - 1; y > 0; y-- {
 		for x := 0; x < playfieldW; x++ {
 			t := pf.get(x, y)
-			if t.isMobile() && pf.get(x, y+1) == tileFloor {
+			if t.isMobile() && pf.get(x, y+1) == tileEmpty {
 				// let it fall
 				y2 := y
-				for pf.get(x, y2+1) == tileFloor {
+				for pf.get(x, y2+1) == tileEmpty {
 					y2++
 				}
-				pf.set(x, y, tileFloor)
+				pf.set(x, y, tileEmpty)
 				pf.set(x, y2, t)
 				changed = true
 			}
@@ -275,10 +264,10 @@ func (pf *playfield) possibleMoves() []move {
 			// Generate all moves
 			for _, dirX := range []int{-1, 1} {
 				x2 := x + dirX
-				for pf.get(x2, y) == tileFloor {
+				for pf.get(x2, y) == tileEmpty {
 					// We can move here!
 					moves = append(moves, move{fromY: y, fromX: x, toX: x2})
-					if pf.get(x2, y+1) == tileFloor || pf.get(x2, y+1) == t {
+					if pf.get(x2, y+1) == tileEmpty || pf.get(x2, y+1) == t {
 						// Floor or same tile: we're done
 						break
 					}
@@ -335,32 +324,46 @@ func badLevelData() {
 	fmt.Fprintf(os.Stderr, `Bad level data, needs to be 12 lines of 12 chars per line.
 
 Valid characters:
+
+	tile0     tile = iota // H(eart)
+	tile1                 // D(iamond)
+	tile2                 // T(riangle)
+	tile3                 // R(ing)
+	tile4                 // (Cross )1
+	tile5                 // (S)andglass
+	tile6                 // (Cross )2
+	tile7                 // F(rame)
+	tile8                 // G(lassblock)
+	tileWall              // '#' (Wall)
+	tileBg                // 'P'(attern)
+	tileEmpty             // '.'
+
 'H' -> Heart tile
 'D' -> Diamond tile
 'T' -> Triangle tile
-'C' -> Circle tile
-'+' -> Cross tile
-'G' -> Hourglass tile
-'P' -> Pate cross tile
-'R' -> Rectangle tile
+'R' -> Ring tile
+'1' -> Cross #1 tile
+'S' -> Sandglass tile
+'2' -> Cross #2 tile
+'F' -> Frame tile
 '#' -> Wall
-'.' -> Background
-' ' -> Floor
+'P' -> Background/Pattern
+'.' -> Empty
 
 Example data (Level 93):
 
-............
-............
-.....##.....
-....# C#....
-...#  PC#...
-..#   GPR#..
-..#   RG+#..
-...#  +C#...
-....# R#....
-.....##.....
-............
-............
+PPPPPPPPPPPP
+PPPPPPPPPPPP
+PPPPP##PPPPP
+PPPP#.R#PPPP
+PPP#..2R#PPP
+PP#...S2F#PP
+PP#...FS1#PP
+PPP#..1R#PPP
+PPPP#.F#PPPP
+PPPPP##PPPPP
+PPPPPPPPPPPP
+PPPPPPPPPPPP
 `)
 	os.Exit(1)
 }
@@ -411,7 +414,7 @@ func playfieldFromScreenshot(screenshot string) *playfield {
 	if err != nil {
 		panic(err)
 	}
-	nofTiles := 11
+	nofTiles := 12
 	tileLineW := nofTiles * tileW
 	var tilesPix = make([]int, tileLineW*tileH)
 	for y := 0; y < tileH; y++ {
@@ -623,6 +626,11 @@ func main() {
 
 	var startPf *playfield
 
+	if len(*flagScreenshot) == 0 && len(*flagLevelData) == 0 {
+		fmt.Fprintf(os.Stderr, "Either -level or -screenshot need to be set.")
+		flag.Usage()
+		os.Exit(1)
+	}
 	if len(*flagScreenshot) > 0 {
 		startPf = playfieldFromScreenshot(*flagScreenshot)
 	} else {

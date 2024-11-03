@@ -26,34 +26,34 @@ go build
 To run pupusolver, you need to pass the level data on the command line via the `--level` flag.
 Every tile is represented by a different character:
 
-- `H` -> Heart tile
-- `D` -> Diamond tile
-- `T` -> Triangle tile
-- `C` -> Circle tile
-- `+` -> Cross tile
-- `G` -> Hourglass tile
-- `P` -> Pate cross tile
-- `R` -> Rectangle tile
-- `#` -> Wall
-- `.` -> Background
-- ` ` -> Floor
+- 'H' -> Heart tile
+- 'D' -> Diamond tile
+- 'T' -> Triangle tile
+- 'R' -> Ring tile
+- '1' -> Cross #1 tile
+- 'S' -> Sandglass tile
+- '2' -> Cross #2 tile
+- 'F' -> Frame tile
+- '#' -> Wall
+- 'P' -> Background/Pattern
+- '.' -> Empty
 
 To run it with level 95 for example, just do this:
 
 ```bash
 ./pupusolver --level="
-............
-............
-..#######...
-..#HCT D#...
-..#THC C#...
-..#+## H#...
-..#D D ##...
-..#### #....
-...##+ #....
-....###.....
-............
-............
+PPPPPPPPPPPP
+PPPPPPPPPPPP
+PP#######PPP
+PP#HRT.D#PPP
+PP#THR.C#PPP
+PP#1##.H#PPP
+PP#D.D.##PPP
+PP####.#PPPP
+PPP##1.#PPPP
+PPPP###PPPPP
+PPPPPPPPPPPP
+PPPPPPPPPPPP
 "
 ```
 
