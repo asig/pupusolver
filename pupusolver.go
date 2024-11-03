@@ -76,6 +76,10 @@ const (
 )
 
 func (t tile) isMobile() bool {
+	return t >= tile0 && t <= tile8
+}
+
+func (t tile) isErasable() bool {
 	return t >= tile0 && t <= tile7
 }
 
@@ -180,7 +184,7 @@ func (pf *playfield) removeTiles() bool {
 	for y := 0; y < playfieldH; y++ {
 		for x := 0; x < playfieldW; x++ {
 			t := pf.get(x, y)
-			if !t.isMobile() {
+			if !t.isErasable() {
 				continue
 			}
 			// Find all same tiles around this one
@@ -191,7 +195,7 @@ func (pf *playfield) removeTiles() bool {
 			if len(set) >= 2 {
 				// More than 2 tiles, remove them
 				changed = true
-				for p, _ := range set {
+				for p := range set {
 					pf.set(p.x, p.y, tileEmpty)
 				}
 			}
