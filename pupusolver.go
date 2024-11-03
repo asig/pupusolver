@@ -39,8 +39,6 @@ import (
 )
 
 const (
-	zoom = 4
-
 	tileW = 16
 	tileH = 16
 
@@ -51,6 +49,9 @@ const (
 var (
 	flagLevelData  = flag.String("level", "", "level data")
 	flagScreenshot = flag.String("screenshot", "", "Load level data from screenshot")
+	flagZoom       = flag.Int("zoom", 3, "Zoom factor between 1 and 10")
+
+	zoom int
 )
 
 // ================================================
@@ -608,14 +609,17 @@ func renderMove(m move, r *sdl.Renderer) {
 }
 
 func text(x, y int, s string, r *sdl.Renderer) {
-	zoom := 2
+	textZoom := zoom - 2
+	if textZoom < 1 {
+		textZoom = 1
+	}
 	for _, c := range s {
 		cy := (c / 32) * 16
 		cx := (c % 32) * 9
 		srcRect := &sdl.Rect{X: int32(cx), Y: int32(cy), W: 9, H: 16}
-		dstRect := &sdl.Rect{X: int32(x), Y: int32(y), W: int32(9 * zoom), H: int32(16 * zoom)}
+		dstRect := &sdl.Rect{X: int32(x), Y: int32(y), W: int32(9 * textZoom), H: int32(16 * textZoom)}
 		r.Copy(fontTexture, srcRect, dstRect)
-		x += 9 * zoom
+		x += 9 * textZoom
 	}
 }
 
@@ -630,8 +634,15 @@ func main() {
 
 	var startPf *playfield
 
+	zoom = *flagZoom
+	if zoom < 1 || zoom > 10 {
+		fmt.Fprintf(os.Stderr, "Zoom value must be between 1 and 10.\n")
+		flag.Usage()
+		os.Exit(1)
+
+	}
 	if len(*flagScreenshot) == 0 && len(*flagLevelData) == 0 {
-		fmt.Fprintf(os.Stderr, "Either -level or -screenshot need to be set.")
+		fmt.Fprintf(os.Stderr, "Either -level or -screenshot need to be set.\n")
 		flag.Usage()
 		os.Exit(1)
 	}

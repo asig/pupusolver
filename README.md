@@ -22,6 +22,11 @@ sudo apt-get install golang libsdl2{,-image}-dev
 go build
 ```
 
+You can also build a statically linked verions with
+```bash
+CGO_ENABLED=1 go build -tags static -ldflags "-s -w"
+```
+
 ### Running `pupusolver`
 To run pupusolver, you need to pass the level data on the command line via the `--level` flag.
 Every tile is represented by a different character:
@@ -60,6 +65,9 @@ PPPPPPPPPPPP
 Alternatively, you can also just pass a screenshot from VICE (Menu "Snapshot", "Save/Record metadata")
 in PNG format using the `--screenshot` flag. `pupusolver` will then reconstruct the level data from 
 that screenshot.
+
+You can control the size of the window with the `--zoom` flag, which controls the zoom-factor when drawing
+the tiles. Valid values are integers between 1 (no zoom, 16x16 pixel per tile) and 10 (160x160 pixel per tile)
 
 # Credits
 PUPU tiles were taken from PUPU with [the permission](https://www.forum64.de/index.php?thread/151032-pupu-das-neue-highlight-f%C3%BCr-den-c64-ist-da/&postID=2212822#post2212822) of PUPU's author [Omega](https://www.forum64.de/wcf/index.php?user/27229-omega/)
