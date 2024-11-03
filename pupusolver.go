@@ -124,7 +124,7 @@ type move struct {
 	toX          int
 }
 
-type tiles [playfieldH][playfieldW]tile
+type tiles [playfieldH + 2][playfieldW + 2]tile
 type playfield struct {
 	tiles tiles
 	path  []move
@@ -143,9 +143,9 @@ func (pf *playfield) apply(m move) *playfield {
 
 	y := m.fromY
 
-	t := pf2.tiles[y][m.fromX]
-	pf2.tiles[y][m.fromX] = tileFloor
-	pf2.tiles[y][m.toX] = t
+	t := pf2.get(m.fromX, y)
+	pf2.set(m.fromX, y, tileFloor)
+	pf2.set(m.toX, y, t)
 
 	for {
 		// drop all the tiles that can drop
@@ -160,26 +160,50 @@ func (pf *playfield) apply(m move) *playfield {
 	}
 }
 
+func (pf *playfield) get(x, y int) tile {
+	return pf.tiles[y+1][x+1]
+}
+
+func (pf *playfield) set(x, y int, t tile) {
+	pf.tiles[y+1][x+1] = t
+}
+
+type pos struct{ x, y int }
+
+func (pf *playfield) extendTileset(t tile, p pos, set map[pos]bool) {
+	if _, found := set[p]; found {
+		// Already been here!
+		return
+	}
+	if pf.get(p.x, p.y) != t {
+		// Not part of the set!
+		return
+	}
+	set[p] = true
+	pf.extendTileset(t, pos{p.x - 1, p.y}, set)
+	pf.extendTileset(t, pos{p.x + 1, p.y}, set)
+	pf.extendTileset(t, pos{p.x, p.y - 1}, set)
+	pf.extendTileset(t, pos{p.x, p.y + 1}, set)
+}
+
 func (pf *playfield) removeTiles() bool {
 	changed := false
-	for y := 0; y < playfieldH-1; y++ {
-		for x := 0; x < playfieldW-1; x++ {
-			t := pf.tiles[y][x]
+	for y := 0; y < playfieldH; y++ {
+		for x := 0; x < playfieldW; x++ {
+			t := pf.get(x, y)
 			if !t.isMobile() {
 				continue
 			}
-			if t == pf.tiles[y+1][x] {
-				pf.tiles[y][x] = tileFloor
-				pf.tiles[y+1][x] = tileFloor
+			// Find all same tiles around this one
+			p := pos{x, y}
+			set := make(map[pos]bool)
+			pf.extendTileset(t, p, set)
+
+			if len(set) >= 2 {
+				// More than 2 tiles, remove them
 				changed = true
-			}
-			if t == pf.tiles[y][x+1] {
-				pf.tiles[y][x] = tileFloor
-				pf.tiles[y][x+1] = tileFloor
-				changed = true
-				if t == pf.tiles[y+1][x+1] {
-					pf.tiles[y+1][x+1] = tileFloor
-					changed = true
+				for p, _ := range set {
+					pf.set(p.x, p.y, tileFloor)
 				}
 			}
 		}
@@ -189,17 +213,17 @@ func (pf *playfield) removeTiles() bool {
 
 func (pf *playfield) dropTiles() bool {
 	changed := false
-	for y := playfieldH - 2; y >= 0; y-- {
+	for y := playfieldH - 1; y > 0; y-- {
 		for x := 0; x < playfieldW; x++ {
-			t := pf.tiles[y][x]
-			if t.isMobile() && pf.tiles[y+1][x] == tileFloor {
+			t := pf.get(x, y)
+			if t.isMobile() && pf.get(x, y+1) == tileFloor {
 				// let it fall
 				y2 := y
-				for pf.tiles[y2+1][x] == tileFloor {
+				for pf.get(x, y2+1) == tileFloor {
 					y2++
 				}
-				pf.tiles[y][x] = tileFloor
-				pf.tiles[y2][x] = t
+				pf.set(x, y, tileFloor)
+				pf.set(x, y2, t)
 				changed = true
 			}
 		}
@@ -208,9 +232,9 @@ func (pf *playfield) dropTiles() bool {
 }
 
 func (pf *playfield) isSolved() bool {
-	for y := playfieldH - 2; y >= 0; y-- {
+	for y := 0; y < playfieldH; y++ {
 		for x := 0; x < playfieldW; x++ {
-			t := pf.tiles[y][x]
+			t := pf.get(x, y)
 			if t >= tile0 && t <= tile7 {
 				return false
 			}
@@ -221,9 +245,9 @@ func (pf *playfield) isSolved() bool {
 
 func (pf *playfield) isSolvable() bool {
 	cnts := make([]int, 8)
-	for y := playfieldH - 2; y >= 0; y-- {
+	for y := 0; y < playfieldH; y++ {
 		for x := 0; x < playfieldW; x++ {
-			t := pf.tiles[y][x]
+			t := pf.get(x, y)
 			if t >= tile0 && t <= tile7 {
 				cnts[t]++
 			}
@@ -243,7 +267,7 @@ func (pf *playfield) possibleMoves() []move {
 
 	for y := 0; y < playfieldH; y++ {
 		for x := 0; x < playfieldW; x++ {
-			t := pf.tiles[y][x]
+			t := pf.get(x, y)
 			if !t.isMobile() {
 				continue
 			}
@@ -251,10 +275,10 @@ func (pf *playfield) possibleMoves() []move {
 			// Generate all moves
 			for _, dirX := range []int{-1, 1} {
 				x2 := x + dirX
-				for pf.tiles[y][x2] == tileFloor {
+				for pf.get(x2, y) == tileFloor {
 					// We can move here!
 					moves = append(moves, move{fromY: y, fromX: x, toX: x2})
-					if pf.tiles[y+1][x2] == tileFloor || pf.tiles[y+1][x2] == t {
+					if pf.get(x2, y+1) == tileFloor || pf.get(x2, y+1) == t {
 						// Floor or same tile: we're done
 						break
 					}
@@ -271,20 +295,39 @@ func (pf *playfield) render(r *sdl.Renderer) {
 	r.Clear()
 	for y := 0; y < playfieldH; y++ {
 		for x := 0; x < playfieldW; x++ {
-			t := pf.tiles[y][x]
+			t := pf.get(x, y)
 			srcRect := &sdl.Rect{X: int32(t * tileW), Y: 0, W: tileW, H: tileH}
 			dstRect := &sdl.Rect{X: int32(x * tileW * zoom), Y: int32(y * tileH * zoom), W: int32(tileW * zoom), H: int32(tileH * zoom)}
 			r.Copy(tilesTexture, srcRect, dstRect)
 		}
 	}
+
+	// Handle all the pending events so that the screen
+	for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+	}
+
+}
+
+func (pf *playfield) dumpStr() string {
+	var sb strings.Builder
+	for y := 0; y < playfieldH; y++ {
+		for x := 0; x < playfieldW; x++ {
+			sb.WriteRune(tileToChar[pf.get(x, y)])
+		}
+		sb.WriteByte('\n')
+	}
+	return sb.String()
 }
 
 func (pf *playfield) dump() {
+	fmt.Printf("%s", pf.dumpStr())
+}
+
+func (pf *playfield) fill(t tile) {
 	for y := 0; y < playfieldH; y++ {
 		for x := 0; x < playfieldW; x++ {
-			fmt.Printf("%c", tileToChar[pf.tiles[y][x]])
+			pf.tiles[y][x] = t
 		}
-		fmt.Println()
 	}
 }
 
@@ -336,6 +379,7 @@ func playfieldFromString(text string) *playfield {
 	}
 
 	var res playfield
+	res.fill(tileBg)
 	for y, l := range lines {
 		if len(l) != playfieldW {
 			badLevelData()
@@ -346,7 +390,7 @@ func playfieldFromString(text string) *playfield {
 				fmt.Fprintf(os.Stderr, "'%c' is not a valid tile.\n", c)
 				badLevelData()
 			}
-			res.tiles[y][x] = t
+			res.set(x, y, t)
 		}
 	}
 	return &res
@@ -425,6 +469,7 @@ func playfieldFromScreenshot(screenshot string) *playfield {
 
 	// Finally, we can read the tiles!
 	pf := playfield{}
+	pf.fill(tileBg)
 	for pfY := 0; pfY < playfieldH; pfY++ {
 		for pfX := 0; pfX < playfieldW; pfX++ {
 			tileFound := -1
@@ -444,7 +489,7 @@ func playfieldFromScreenshot(screenshot string) *playfield {
 			if tileFound < 0 {
 				tileFound = int(tileBg)
 			}
-			pf.tiles[pfY][pfX] = tile(tileFound)
+			pf.set(pfX, pfY, tile(tileFound))
 		}
 	}
 
@@ -464,6 +509,7 @@ type deque_elem struct {
 type deque struct {
 	head *deque_elem
 	tail *deque_elem
+	sz   int
 }
 
 func (d *deque) empty() bool {
@@ -471,6 +517,7 @@ func (d *deque) empty() bool {
 }
 
 func (d *deque) pop() *playfield {
+	d.sz--
 	res := d.head.val
 	d.head = d.head.next
 	if d.head == nil {
@@ -480,6 +527,7 @@ func (d *deque) pop() *playfield {
 }
 
 func (d *deque) push(pf *playfield) {
+	d.sz++
 	elem := &deque_elem{val: pf}
 	if d.head == nil {
 		// first elem
@@ -489,6 +537,10 @@ func (d *deque) push(pf *playfield) {
 		d.tail.next = elem
 		d.tail = elem
 	}
+}
+
+func (d *deque) size() int {
+	return d.sz
 }
 
 func (d *deque) dump() {
@@ -570,6 +622,7 @@ func main() {
 	initTileMap()
 
 	var startPf *playfield
+
 	if len(*flagScreenshot) > 0 {
 		startPf = playfieldFromScreenshot(*flagScreenshot)
 	} else {
@@ -601,6 +654,7 @@ func main() {
 	seen := make(map[tiles]bool)
 	playfields := deque{}
 
+	startPf.render(renderer)
 	playfields.push(startPf)
 
 	var solution *playfield
@@ -611,6 +665,9 @@ func main() {
 		pf := playfields.pop()
 
 		pfCnt++
+		if pfCnt%100000 == 0 {
+			fmt.Printf("%d playfields analysed, current queue size %d\n", pfCnt, playfields.size())
+		}
 
 		moves := pf.possibleMoves()
 		for _, m := range moves {
